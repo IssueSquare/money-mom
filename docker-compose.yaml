@@ -1,0 +1,18 @@
+version: '2'
+services:
+  mongo:
+     image: mongo:latest
+     ports:
+     - "27017:27017"
+     volumes:
+     - ./tmp:/data/db
+     restart:
+       always
+  money-mom:
+     privileged: true
+     build:
+       context: ./
+     ports:
+     - "30000:8080"
+     depends_on:
+       - mongo
