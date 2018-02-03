@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/userRegist", user.Register)
+	http.HandleFunc("/userRegister", user.Register)
 	http.HandleFunc("/userLogin", user.Login)
 	http.ListenAndServe(":8080", nil)
 }
