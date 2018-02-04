@@ -1,27 +1,47 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-//BasicAuth a way of verify client-side
-func BasicAuth(auth []string) error {
+//CallBackFunc used to fit http package ineterface
+type CallBackFunc func(http.ResponseWriter, *http.Request)
 
-	if len(auth) != 2 || auth[0] != "Basic" {
-		return fmt.Errorf("error")
-		//check the token
-	}
-	token, _ := base64.StdEncoding.DecodeString(auth[1])
-	pair := strings.SplitN(string(token), ":", 2)
+//BasicAuth func used to verify User relative serviecs
+func BasicAuth(f CallBackFunc, user, passwd []byte) CallBackFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
-	if len(pair) != 2 || !ValidateBasicToken(pair[0], pair[1]) {
-		return fmt.Errorf("error")
+		//fetch request header
+		auth := r.Header.Get("Authorization")
+		if strings.HasPrefix(auth, "Basic ") {
+			//decode basic token
+			payload, err := base64.StdEncoding.DecodeString(
+				auth[len("Basic "):],
+			)
+			if err == nil {
+				pair := bytes.SplitN(payload, []byte(":"), 2)
+				//TODO last pair will get newline char.
+				pair[1] = bytes.TrimSuffix(pair[1], []byte{'\n'})
+
+				if len(pair) == 2 && bytes.Equal(pair[0], user) &&
+					bytes.Equal(pair[1], passwd) {
+					//if pass invoke callback func
+					f(w, r)
+					return
+				}
+			}
+		}
+
+		//verify faild.
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		w.WriteHeader(http.StatusUnauthorized)
 	}
-	return nil
 }
 
 //ValidateJWT a way of verify JWT
@@ -38,13 +58,4 @@ func ValidateJWT(auth []string) error {
 		panic(err)
 	}
 	return nil
-}
-
-//ValidateBasicToken used to verify
-func ValidateBasicToken(username, password string) bool {
-	//todo should put in db
-	if username == "money-ios-client" && password == "xdfg212" {
-		return true
-	}
-	return false
 }
